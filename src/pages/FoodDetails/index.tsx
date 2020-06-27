@@ -58,6 +58,8 @@ interface Food {
   image_url: string;
   formattedPrice: string;
   extras: Extra[];
+  category: number;
+  thumbnail_url: string;
 }
 
 const FoodDetails: React.FC = () => {
@@ -73,38 +75,92 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
-    }
+      const { data } = await api.get(`foods/${routeParams.id}`);
+      if (!data) {
+        throw new Error('Food id not exists!');
+      }
+      const newFood: Food = {
+        ...data,
+        formattedPrice: formatValue(data.price),
+      };
 
+      const newListExtra = newFood.extras.map(itemExtra => {
+        return {
+          ...itemExtra,
+          quantity: 0,
+        };
+      });
+
+      setFood(newFood);
+      setExtras(newListExtra);
+    }
     loadFood();
   }, [routeParams]);
 
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    const newListExtra = extras.map(itemExtra => {
+      return itemExtra.id === id
+        ? {
+            ...itemExtra,
+            quantity: Number(itemExtra.quantity + 1),
+          }
+        : itemExtra;
+    });
+
+    setExtras(newListExtra);
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    const newListExtra = extras.map(itemExtra => {
+      return itemExtra.id === id
+        ? {
+            ...itemExtra,
+            quantity: Number(
+              itemExtra.quantity <= 1 ? 0 : itemExtra.quantity - 1,
+            ),
+          }
+        : itemExtra;
+    });
+
+    setExtras(newListExtra);
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(state => Number(state + 1));
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    setFoodQuantity(state => Number(state <= 2 ? 1 : state - 1));
   }
 
   const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
+    setIsFavorite(state => !state);
   }, [isFavorite, food]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const totalExtras = extras.reduce((accumulator, itemExtra) => {
+      return accumulator + Number(itemExtra.value) * Number(itemExtra.quantity);
+    }, 0);
+
+    const totalFood = (Number(food.price) + totalExtras) * foodQuantity;
+
+    return formatValue(totalFood);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
-    // Finish the order and save on the API
+    try {
+      await api.post('orders', {
+        product_id: food.id,
+        name: food.name,
+        description: food.description,
+        price: food.price,
+        category: food.category,
+        thumbnail_url: food.thumbnail_url,
+        extras,
+      });
+    } catch (err) {
+      console.log('Erro ao tentar fazer o pedido no sistema, tente novamente.');
+    }
   }
 
   // Calculate the correct icon name
